@@ -1,0 +1,12 @@
+This is a GNN model which tries to predict the probability of each setup assignments
+
+We use bipartite graph. 
+We separate the set of variable nodes and constraint nodes.Then use the coeffients in the MILP formulation to assign features and attribute for each node and edge.
+
+compared to v01, we add a dummy product, so that the constraints \sum_{j}Y_{j,r}=1 holds. Then we use softmax to predict the probability in each period.
+
+We add the information from relaxation problem, including the optimal relaxed solution and the dual values, to the features of nodes and constraints.
+
+We report the relative gap and time using the gnn predicted decisions.
+- in det-v3, we add only the term M(1-y) if the probability p is above a certain threshold
+- compared to det-v3, here the penalization term is M((1-p)y + p(1-y)) for all the y, use directly the predicted value p in the objective function
