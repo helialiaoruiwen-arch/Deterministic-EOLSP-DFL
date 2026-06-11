@@ -290,8 +290,20 @@ class SPOPlusFunction(torch.autograd.Function):
         #     print('true loss', eval_obj-scenario.obj)
         #     print('spo obj, true obj', spo_obj, scenario.obj)
 
-        pred_y = torch.from_numpy(theta).to(pred_theta.device)
-        ctx.save_for_backward(y_spo_tensor_reshape, true_y, pred_y)
+        # pred_y = torch.from_numpy(theta).to(pred_theta.device)
+
+        # ctx.save_for_backward(y_spo_tensor_reshape, true_y, pred_theta)
+
+        y_moving_ave = calculate_independent_moving_average_pool(true_y, 1)
+        ctx.save_for_backward(y_spo_tensor_reshape, y_moving_ave, pred_theta)
+
+        # theta_flat = np.array(y_moving_ave).flatten()
+        # spo_theta_flat = np.array(spo_theta_safe).flatten()
+        # plt.figure(figsize=(10, 5))
+        # plt.plot(theta_flat, label='Original Theta', color='blue', alpha=0.7)
+        # plt.plot(spo_theta_flat, label='Theta + White Noise', color='red', alpha=0.5, linestyle='--')
+        # plt.show()
+        
         
         # Theoretical SPO+ loss value
         spo_loss = spo_obj - scenario.obj
@@ -456,3 +468,78 @@ def calculate_bce_gradient(pred_p, true_y, epsilon=1e-7):
     grad = (pred_p - true_y) / (pred_p * (1 - pred_p))
     
     return grad
+
+
+
+def calculate_moving_average(Y: torch.Tensor, period_length: int) -> torch.Tensor:
+    """
+    Calculates a rolling/moving average over the 'r' dimension.
+    
+    Args:
+        Y (torch.Tensor): Input tensor of shape (j, r)
+        period_length (int): The size of the moving average window (e.g., 3).
+                             Must be an odd number for symmetrical centering.
+                             
+    Returns:
+        torch.Tensor: The averaged tensor \bar Y_{j, r} of the same shape (j, r).
+                      Edges are padded with zeros to maintain shape.
+    """
+    if period_length % 2 == 0:
+        raise ValueError("This centered moving average expects an odd period_length (like 3, 5, 7) to be perfectly symmetrical.")
+
+    # conv1d expects input shape: (batch_size, num_channels, sequence_length)
+    # We treat our 'j' rows as the 'channels' dimension
+    Y_unsqueezed = Y.unsqueeze(0)  # Shape becomes (1, j, r)
+    
+    j = Y.shape[0]
+    
+    # Create a flat average filter/kernel of size `period_length`
+    # Shape: (out_channels, in_channels/groups, kernel_size) -> (j, 1, period_length)
+    weight = torch.ones(j, 1, period_length, dtype=Y.dtype, device=Y.device) / period_length
+    
+    # Symmetrical padding to keep the output sequence length exactly the same
+    padding_size = period_length // 2
+    
+    # We use groups=j so each row is filtered independently by its own average weight
+    Y_bar = F.conv1d(Y_unsqueezed, weight, padding=padding_size, groups=j)
+    
+    return Y_bar.squeeze(0)  # Shape goes back to (j, r)
+
+def calculate_independent_moving_average_pool(Y: torch.Tensor, period_length: int = 3) -> torch.Tensor:
+    """
+    使用一维平均池化计算真正的中心移动平均（包含当前、前一天、后一天）。
+    自动处理边界，在边缘自动缩小窗口（除以 2)不会被 0 污染。
+    """
+    # 1. 调整维度以符合池化要求: (Batch, Channels, Length) -> (1, num_products, r)
+    Y_input = Y.unsqueeze(0)
+    
+    # 2. 使用平均池化
+    # kernel_size=3, stride=1 确保窗口逐格移动
+    # padding=1 确保左右各看一格
+    # count_include_pad=False 是核心：边界补的 0 不参与除法分母计算！
+    Y_bar = F.avg_pool1d(
+        Y_input, 
+        kernel_size=period_length, 
+        stride=1, 
+        padding=period_length // 2, 
+        count_include_pad=False
+    )
+    
+    return Y_bar.squeeze(0)
+
+
+
+
+
+if __name__ == "__main__":
+    Y = torch.tensor([[0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, -0.00, 1.00, 1.00, 1.00, 1.00,
+         1.00, 1.00, 1.00, 1.00],
+        [1.00, 1.00, 1.00, 1.00, 1.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, -0.00,
+         0.00, 0.00, 0.00, 0.00],
+        [0.00, 0.00, 0.00, 0.00, 0.00, 1.00, 1.00, 1.00, -0.00, 0.00, 0.00, -0.00,
+         -0.00, 0.00, 0.00, 0.00],
+        [0.00, 0.00, 0.00, 0.00, -0.00, 0.00, 0.00, -0.00, 0.00, 0.00, 0.00, 0.00,
+         0.00, 0.00, -0.00, 0.00]])
+
+    Y_bar = calculate_independent_moving_average_pool(Y,3)
+    print(Y_bar)

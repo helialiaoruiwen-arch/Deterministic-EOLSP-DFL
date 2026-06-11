@@ -4,7 +4,7 @@ import numpy as np
 from torch_geometric.loader import DataLoader
 from model_def import SchedulerForward, SchedulingDataset
 from sklearn.metrics import confusion_matrix, classification_report
-from CplexModel import solve_with_fixed_setups, solve_with_penalization_in_obj, evaluate_solution
+from CplexModel import solve_with_fixed_setups, solve_with_penalization_in_obj, solve_with_penalization_in_obj_hard, evaluate_solution
 from types import SimpleNamespace
 import matplotlib.pyplot as plt
 
@@ -68,8 +68,8 @@ def evaluate(test_data, model_path, result_store_path, x_labels, feat_dims, edge
 
         accuracy = []
 
-        # threshold = [0.5, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95, 0.99]
-        threshold = [0.5]
+        threshold = [0.5, 0.60, 0.70, 0.80, 0.90, 0.95]
+        # threshold = [0.5]
         
         gaps_fixe = [[] for i in range(len(threshold))]
         times_fixe = [[] for i in range(len(threshold))]
@@ -107,11 +107,14 @@ def evaluate(test_data, model_path, result_store_path, x_labels, feat_dims, edge
 
                 max_vals, argmax_indices = native_scatter_max(y_hat, slot_indices, num_slots)
 
+                prod_indices = argmax_indices // scenario.R
+
                 cplex_obj = scenario.obj
 
                 y_true_binary = torch.round(batch['var_setup'].y)
                 all_targets.append(y_true_binary.cpu())
 
+                # # plot the figure for some instances for visualization
                 # theta_flat = np.array(y_hat.detach().numpy()).flatten()
                 # y_true_flat = np.array(y_true_binary.detach().numpy()).flatten()
                 # # y_new_flat = np.array(y_new.reshape(scenario.J+1, scenario.R+1)[:,1:]).flatten()
@@ -124,31 +127,26 @@ def evaluate(test_data, model_path, result_store_path, x_labels, feat_dims, edge
                 # evaluate the quality of the gnn precision by penalizing in the objective function
                 # obj_pen, time_pen = solve_with_penalization_in_obj(scenario, prod_indices, confident_mask)
 
-                y_hat_reshape = y_hat.reshape(scenario.J+1, scenario.R).detach().numpy()
-                true_penaliz_obj, y_new, time_pen = solve_with_penalization_in_obj(scenario, y_hat_reshape)
-                obj_pen, ti = evaluate_solution(scenario, y_new)
 
-                # theta_flat = np.array(y_hat.detach().numpy()).flatten()
-                # y_true_flat = np.array(y_true_binary.detach().numpy()).flatten()
-                # y_new_flat = np.array(y_new.reshape(scenario.J+1, scenario.R+1)[:,1:]).flatten()
-                # plt.figure(figsize=(10, 5))
-                # plt.plot(theta_flat, label='Original Theta', color='blue', alpha=0.7)
-                # plt.plot(y_true_flat, label='True y', color='red', alpha=0.5, linestyle='--')
-                # plt.plot(y_new_flat, label='Pred y', color='blue', alpha=0.5, linestyle='dotted')
-                # plt.show()
+                # ---------------------------------
+                # y_hat_reshape = y_hat.reshape(scenario.J+1, scenario.R).detach().numpy()
+                # true_penaliz_obj, y_new, time_pen = solve_with_penalization_in_obj(scenario, y_hat_reshape)
+                # obj_pen, ti = evaluate_solution(scenario, y_new)
 
-                gap_pen = (obj_pen - cplex_obj) / cplex_obj
-                relative_time_pen = time_pen / scenario.resolution_time
-                time_ref.append(scenario.resolution_time)
 
-                gaps_penalize.append(gap_pen)
-                times_penalize.append(time_pen)
-                relat_times_penalize.append(relative_time_pen)
-                time_pen_eval.append(ti)
-                obj_penalize.append(obj_pen)
-                obj_ref.append(cplex_obj)
+                # gap_pen = (obj_pen - cplex_obj) / cplex_obj
+                # relative_time_pen = time_pen / scenario.resolution_time
+                # time_ref.append(scenario.resolution_time)
 
-                loss.append(obj_pen-cplex_obj)
+                # gaps_penalize.append(gap_pen)
+                # times_penalize.append(time_pen)
+                # relat_times_penalize.append(relative_time_pen)
+                # time_pen_eval.append(ti)
+                # obj_penalize.append(obj_pen)
+                # obj_ref.append(cplex_obj)
+
+                # loss.append(obj_pen-cplex_obj)
+                #--------------------------------------------
 
                 # print('loss:',obj_pen-cplex_obj)
                 print(m)
@@ -191,18 +189,21 @@ def evaluate(test_data, model_path, result_store_path, x_labels, feat_dims, edge
                     fixed_perc = count / scenario.R
                     percentage_fixed[k].append(fixed_perc)
 
-                    # # With those confident enough Y values fixed, resolve the problem and get the objective value
-                    # # evaluate the performance of the gnn prediction
-                    # confident_mask = max_vals >= thres
+                    # With those confident enough Y values fixed, resolve the problem and get the objective value
+                    # evaluate the performance of the gnn prediction
+                    confident_mask = max_vals >= thres
                     
-                
+                    # # Hard fixing strategy
                     # obj_fixe, time_fixe = solve_with_fixed_setups(scenario, prod_indices, confident_mask)
 
-                    # gap_fixe = (obj_fixe - cplex_obj) / cplex_obj
-                    # relative_time_fixe = time_fixe / scenario.resolution_time
+                    # Soft fixing strategy
+                    obj_fixe, time_fixe = solve_with_penalization_in_obj_hard(scenario, prod_indices, confident_mask)
+
+                    gap_fixe = (obj_fixe - cplex_obj) / cplex_obj
+                    relative_time_fixe = time_fixe / scenario.resolution_time
                     
-                    # gaps_fixe[k].append(gap_fixe)
-                    # times_fixe[k].append(relative_time_fixe)
+                    gaps_fixe[k].append(gap_fixe)
+                    times_fixe[k].append(relative_time_fixe)
 
                     
                     
@@ -232,7 +233,7 @@ def evaluate(test_data, model_path, result_store_path, x_labels, feat_dims, edge
         TIMES_PEN.append(times_penalize)
 
         
-        print('true ave loss', sum(loss)/len(loss))
+        # print('true ave loss', sum(loss)/len(loss))
     # print('spo ave loss', sum(loss_spo)/len(loss_spo))
 
     y_pred = [torch.cat(all_preds[k]).cpu().numpy() for k in range(len(threshold))]
@@ -250,8 +251,12 @@ def evaluate(test_data, model_path, result_store_path, x_labels, feat_dims, edge
         'recall': recall,
         'all_preds': y_pred,
         'all_targets': y_true,
-        'threshold':threshold
+        'threshold':threshold,
+        'gap_fixing': gaps_fixe,
+        'time_fixing': times_fixe,
+        'percentage_fixed': percentage_fixed
     }
+    # print(results)
 
     with open(f'results/{result_store_path}', 'wb') as f:
         pickle.dump(results, f)

@@ -38,7 +38,7 @@ def criterion(y_hat_probs, y_true, num_slots, setup_weight=0.1):
 def train(train_data, test_data, model_path, feat_dims, edge_dims):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # checkpoint = torch.load("checkpoint_epoch_var_bce_19.pth")
-    checkpoint = torch.load("checkpoints/var_150data_spo/checkpoint_epoch_49.pth")
+    checkpoint = torch.load("checkpoints/var_150data_spo_moving_ave_3/checkpoint_epoch_49.pth")
     
 
     train_loader = DataLoader(train_data, batch_size=BATCH_SIZE, shuffle=True)
@@ -123,7 +123,7 @@ def train(train_data, test_data, model_path, feat_dims, edge_dims):
                     # spo_loss_list.append(SPOPlusFunction.apply(theta_perturbed, y_true_reshape, scenario))
                     # spo_loss_list.append(SPOPlusFunction.apply(theta_reshape, y_true_reshape, scenario, epoch, i))
 
-                    spo_loss_list.append(FYFunction.apply(theta_reshape, y_true_reshape, scenario, epoch, i))
+                    spo_loss_list.append(SPOPlusFunction.apply(theta_reshape, y_true_reshape, scenario, epoch, i))
 
                     # if i == 0 and epoch%5 == 0:
                     #     print('theta', theta.detach().numpy())
@@ -220,9 +220,9 @@ def train(train_data, test_data, model_path, feat_dims, edge_dims):
 
                         # theta_perturbed = theta_reshape + torch.randn_like(theta_reshape) * 0.05
                         # spo_loss_list.append(SPOPlusFunction.apply(theta_perturbed, y_true_reshape, scenario))
-                        # spo_loss_list.append(SPOPlusFunction.apply(theta_reshape, y_true_reshape, scenario, epoch, i))
+                        spo_loss_list.append(SPOPlusFunction.apply(theta_reshape, y_true_reshape, scenario, epoch, i))
 
-                        spo_loss_list.append(FYFunction.apply(theta_reshape, y_true_reshape, scenario, epoch, i))
+                        # spo_loss_list.append(FYFunction.apply(theta_reshape, y_true_reshape, scenario, epoch, i))
 
                     spo_loss = torch.stack(spo_loss_list).mean()
 
@@ -238,7 +238,7 @@ def train(train_data, test_data, model_path, feat_dims, edge_dims):
                 
 
 
-        checkpoint_dir = Path("checkpoints/var_150data_fy_gumbel")
+        checkpoint_dir = Path("checkpoints/var_150data_spo_CE_pen")
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
         if epoch % 10 == 9:
             checkpoint = {

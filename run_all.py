@@ -5,10 +5,10 @@ from train_gnn import train
 from accuracy2 import evaluate
 
 
-DATA_PATH = "data_storage_var"
-# DATA_PATH = "data_storage_test_4days"
+# DATA_PATH = "data_storage_var"
+DATA_PATH = "data_storage_test_1-2days"
 MODEL_PATH = "scheduling_gnn_var.pth"
-RESULT_STORE_PATH = "simulation_results_4days_40data.pkl"
+RESULT_STORE_PATH = "simulation_results_1-2days_soft_fixing_1000.pkl"
 
 def get_split_data(dataset, train_ratio=0.05, seed=42):
     train_size = int(train_ratio * len(dataset))
@@ -31,6 +31,7 @@ def detect_all_edge_dims(data):
 
 
 full_dataset = SchedulingDataset(DATA_PATH)[:3000]
+# full_dataset = SchedulingDataset(DATA_PATH)
 train_set, test_set = get_split_data(full_dataset)
 
 sample_data = full_dataset[0]
@@ -60,38 +61,51 @@ e_dim = detect_all_edge_dims(sample_data)
 # print(f'Detected edge dimensions: {e_dim}')
 
 
-train(train_set, test_set[:50], MODEL_PATH, feat_dims, e_dim)
-print('Training phase done.')
+# train(train_set, test_set[:50], MODEL_PATH, feat_dims, e_dim)
+# print('Training phase done.')
 # evaluate(test_set, MODEL_PATH, feat_dims, e_dim)
 
 
 # evaluate(train_set, MODEL_PATH, feat_dims, e_dim)
 
 # MODEL_PATH = ['var_4800data_bce/checkpoint_epoch_19.pth','var_2400data_bce/checkpoint_epoch_19.pth', 'var_150data_bce/checkpoint_epoch_19.pth', 
-#             'var_150data_spo/checkpoint_epoch_49.pth', 'var_150data_hybrid/checkpoint_epoch_49.pth','var_150data_fy/checkpoint_epoch_49.pth']
+#             'var_150data_spo/checkpoint_epoch_49.pth', 'var_150data_hybrid/checkpoint_epoch_49.pth','var_150data_fy/checkpoint_epoch_49.pth',
+#             'var_150data_spo_moving_ave_3/checkpoint_epoch_49.pth', 'var_150data_spo_moving_ave_5/checkpoint_epoch_49.pth']
 # X_LABELS = ['4800data_bce_epoch_20','2400data_bce_epoch_20', '150data_bce_epoch_20',
-#             '150data_spo_epoch_50', '150data_hybrid_epoch_50', '150data_fy_epoch_50']
-# # MODEL_PATH = ['var_2400data_spo/checkpoint_epoch_49.pth', 'var_2400data_spo/checkpoint_epoch_99.pth']
-# # X_LABELS = ['2400data_spo_epoch_50', '2400data_spo_epoch_100']
-# assert len(MODEL_PATH) == len(X_LABELS)
-# validation_dataset = SchedulingDataset(DATA_PATH)[:40]
+#             '150data_spo_epoch_50', '150data_hybrid_epoch_50', '150data_fy_epoch_50',
+#             '150data_spo_moving_ave_3', '150data_spo_moving_ave_5']
+
+# MODEL_PATH = ['var_150data_spo_CE_pen/checkpoint_epoch_49.pth']
+MODEL_PATH = ['var_150data_bce/checkpoint_epoch_19.pth']
+X_LABELS = ['150data_bce_epoch_20_pen']
+
+# MODEL_PATH = ['var_150data_spo_moving_ave_3/checkpoint_epoch_49.pth', 'var_150data_spo_moving_ave_5/checkpoint_epoch_49.pth']
+# X_LABELS = ['150data_spo_moving_ave_3', '150data_spo_moving_ave_5']
+# MODEL_PATH = ['var_2400data_spo/checkpoint_epoch_49.pth', 'var_2400data_spo/checkpoint_epoch_99.pth']
+# X_LABELS = ['2400data_spo_epoch_50', '2400data_spo_epoch_100']
+
+assert len(MODEL_PATH) == len(X_LABELS)
+validation_dataset = SchedulingDataset(DATA_PATH)[:]
 # evaluate(validation_dataset, MODEL_PATH, RESULT_STORE_PATH, X_LABELS, feat_dims, e_dim)
 
 
 # # see how the data looks like
-# data = train_set[0]
-# print(len(train_set))
-# print("--- Graph Summary ---")
-# print(f"Number of nodes: {data.num_nodes}")
-# print(f"Number of edges: {data.num_edges}")
-# print(f"Features per node: {data.num_node_features}") # This should match your model's input_dim
-# print(f"Is directed: {data.is_directed()}")
+data = train_set[0]
+print(len(train_set))
+print("--- Graph Summary ---")
+print(f"Number of nodes: {data.num_nodes}")
+print(f"Number of edges: {data.num_edges}")
+print(f"Features per node: {data.num_node_features}") # This should match your model's input_dim
+print(f"Is directed: {data.is_directed()}")
 
-# print("\n--- Tensor Shapes ---")
+print("\n--- Tensor Shapes ---")
 # print(f"Node Features (x): {data.x.shape}")   # [Nodes, Features]
 # print(f"Edge Index: {data.edge_index.shape}")  # [2, Edges]
-# print(f"Labels (y): {data.y.shape}")
-# print(f"\nTotal Setups in this scenario: {data.y.sum().item()}")
+print(f"Labels (y): {data['var_setup'].y.shape}")
+print(f"\nTotal Setups in this scenario: {data['var_setup'].y.sum().item()}")
 
 # print(f"First 5 Node Feature Vectors: {data.x[:5]}")
 # print(f"\nFirst 5 Labels (Setups): {data.y[:5]}")
+
+
+####################### some tests: exploit the neighborhood of the optimum ###############################

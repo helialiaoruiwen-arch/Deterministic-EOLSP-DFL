@@ -468,6 +468,7 @@ class CplexOptimizer:
         if penalize == False:
             return updates
 
+        ### Soft penalization
         if penalize == True:
             # add term in the objective function: M((1-p)y + p(1-y)) = M((1-2p)y + p)
             big_M = 100.0
@@ -495,8 +496,30 @@ class CplexOptimizer:
 
             #         coef = np.log(1-self.y_pred[j][r_idx] + 1e-5) - np.log(self.y_pred[j][r_idx]+1e-5)
             #         updates.append((var_index, big_M*coef))
+
+
+        ### Penalization with the term M(1-y)
+        if penalize == 'Hard':
+            big_M = 1000
+            cnst = sum(np.array(self.confident_mask).astype(int))
+            offset = cnst * big_M
+            for r_idx in range(self.R):
+                # r is 1-indexed in your CplexOptimizer setup_var keys
+                r_cplex = r_idx + 1 
+
+                # fix only values whose probability is above a certain threshold
+                if self.confident_mask[r_idx]:
+                    chosen_j = int(self.prod_indices[r_idx])
+
+                    for j in range(self.J + 1):
+                        var_index = self.setup_var[(j, r_cplex)]
+
+                        # If this product was chosen by GNN, fix to 1. Else, fix to 0.
+                        if j == chosen_j:
+                            updates.append((var_index, -big_M))
         
-            return updates, offset
+        
+        return updates, offset
 
         
     def generate_demand(self, utilization_rate):
@@ -672,7 +695,7 @@ def solve_with_fixed_setups(scenario_data, prod_indices, confident_mask):
 
     start_cplex = time.perf_counter()
 
-    opt.detModel.parameters.timelimit.set(20)
+    opt.detModel.parameters.timelimit.set(1200)
     # Solve the remaining Linear Program (LP)
     opt.detModel.solve()
 
@@ -688,6 +711,48 @@ def solve_with_fixed_setups(scenario_data, prod_indices, confident_mask):
         return float('inf')
 
 
+
+# Penalize with term M(1-y)
+def solve_with_penalization_in_obj_hard(scenario_data, prod_indices, confident_mask):
+    """
+    scenario_data: A dictionary or object containing raw_D, raw_sc, etc.
+    gnn_predictions: A 1D array/tensor of the chosen product indices for each slot R.
+    """
+
+    # Initialize the existing class
+    # We use the dimensions from the scenario data
+    J = scenario_data.J
+    days = scenario_data.days
+    opt = CplexOptimizer(days, J)
+    opt.prod_indices = prod_indices
+    opt.confident_mask = confident_mask
+
+    # Update the model with this specific instance's parameters
+    opt.detModel.linear_constraints.set_rhs(opt.update_param(scenario_data))
+    opt.detModel.variables.set_upper_bounds(opt.update_ub(scenario_data))
+
+    obj_updates, offset = opt.update_objective(scenario_data, penalize='Hard')
+    opt.detModel.objective.set_linear(obj_updates)
+    opt.detModel.objective.set_offset(float(offset))
+
+    start_cplex = time.perf_counter()
+    opt.detModel.parameters.timelimit.set(1200)
+    # Solve the remaining Linear Program (LP)
+    opt.detModel.solve()
+
+    end_cplex = time.perf_counter()
+
+    total_time = end_cplex - start_cplex
+    
+    status = opt.detModel.solution.get_status()
+    if status in [1, 101, 102, 107]: # Optimal statuses
+        return opt.detModel.solution.get_objective_value(), total_time
+    else:
+        # If GNN made an impossible choice (e.g., broke a hard constraint)
+        return float('inf')
+
+
+# Soft penalization
 def solve_with_penalization_in_obj(scenario_data, y_predictions):
     """
     scenario_data: A dictionary or object containing raw_D, raw_sc, etc.
@@ -724,7 +789,7 @@ def solve_with_penalization_in_obj(scenario_data, y_predictions):
     # opt.detModel.set_log_stream(log_file)
     # opt.detModel.set_results_stream(log_file)
 
-    opt.detModel.parameters.timelimit.set(200)
+    opt.detModel.parameters.timelimit.set(1200)
     # Solve the remaining Linear Program (LP)
     opt.detModel.solve()
 
