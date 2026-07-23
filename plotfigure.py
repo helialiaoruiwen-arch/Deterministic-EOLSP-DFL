@@ -8,7 +8,7 @@ from sklearn.metrics import confusion_matrix, classification_report
 def plot_results(data):
     GAPS_PEN = data['gap_data']
     RELATIVE_TIME_PEN = data['time_data']
-    PERCENT = data['percent_data']
+    # PERCENT = data['percent_data']
     # TIMES_PEN = data['penalized_time_data']
     x_labels = data['labels']
     # obj_ref = data['ref_objectif']
@@ -20,8 +20,8 @@ def plot_results(data):
     # threshold = data['threshold']
 
     # relat_times_penalize is the relative time with respect to the reference time
-    # plot_distribution(GAPS_PEN, RELATIVE_TIME_PEN, x_labels, 'distribution_evolution_with_penalization.png')
-    plot_distribution(GAPS_PEN, RELATIVE_TIME_PEN, PERCENT, x_labels, 'distribution_evolution_with_penalization.png')
+    plot_distribution(GAPS_PEN, RELATIVE_TIME_PEN, x_labels, 'distribution_evolution_with_penalization.png')
+    # plot_distribution(GAPS_PEN, RELATIVE_TIME_PEN, PERCENT, x_labels, 'distribution_evolution_with_penalization.png')
 
     plot_gap_vs_time(GAPS_PEN,RELATIVE_TIME_PEN,x_labels)
     # plotfigure(gap_data_pct_pen, times_penalize, 'combined_performance_pen.png')
@@ -138,17 +138,17 @@ def plotfigure(gaps, times, fig_name):
 
 
 
-# def plot_distribution(gap_data, time_data, x_labels, fig_name):
-def plot_distribution(gap_data, time_data, percent_data, x_labels, fig_name):
+def plot_distribution(gap_data, time_data, x_labels, fig_name):
+# def plot_distribution(gap_data, time_data, percent_data, x_labels, fig_name):
     """
     Renders boxplots comparing distribution performance profiles across configurations.
     Automatically catches shape orientations to guarantee label alignment accuracy.
     """
-    fig, axes = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
+    fig, axes = plt.subplots(2, 1, figsize=(10, 12), sharex=True)
     
     gap_arr = np.asarray(gap_data)
     time_arr = np.asarray(time_data)
-    perc_arr = np.asarray(percent_data)
+    # perc_arr = np.asarray(percent_data)
     num_methods = len(x_labels)
     
     # DYNAMIC ORIENTATION DETECTION:
@@ -157,16 +157,16 @@ def plot_distribution(gap_data, time_data, percent_data, x_labels, fig_name):
     if gap_arr.shape[0] == num_methods:
         gap_to_plot = gap_arr.T
         time_to_plot = time_arr.T
-        percent_to_plot = perc_arr.T
+        # percent_to_plot = perc_arr.T
     else:
         gap_to_plot = gap_arr
         time_to_plot = time_arr
-        percent_to_plot = perc_arr
+        # percent_to_plot = perc_arr
 
     plot_configs = [
-        (gap_to_plot, 'Cost Gap (%)', 'Cost Gap Distribution', 'skyblue', 'blue', (-1, 15)),
+        (gap_to_plot, 'Cost Gap (%)', 'Cost Gap Distribution', 'skyblue', 'blue', (-2, 25)),
         (time_to_plot, 'Relative Run Time', 'Run Time Distribution', 'salmon', 'red', (0, 1.2)),
-        (percent_to_plot, 'Percentage fixed', 'Number of setups fixed', 'honeydew', 'forestgreen', (0,1))
+        # (percent_to_plot, 'Percentage fixed', 'Number of setups fixed', 'honeydew', 'forestgreen', (0,1))
     ]
     
     for ax, (data_matrix, ylabel, title, f_col, b_col, ylims) in zip(axes, plot_configs):
@@ -294,6 +294,57 @@ def plot_gap_vs_time(gap_data, time_data, x_labels, fig_name="gap_vs_time.png"):
     
     plt.legend(title="Models", bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.grid(True, linestyle=':', alpha=0.4)
+    plt.tight_layout()
+    plt.savefig(fig_name, dpi=300, bbox_inches='tight')
+    plt.show()
+
+
+def plot_gap_vs_time_two_groups(
+    group1_gap, group1_time, group1_labels,
+    group2_gap, group2_time, group2_labels,
+    fig_name="gap_vs_time_two_groups.png"
+):
+    plt.figure(figsize=(12, 7)) # Adjusted size for dual-group legend
+    
+    # 1. Color map (Using plasma for group 1, and another distinctive map like viridis or cividis for group 2)
+    colors1 = plt.cm.plasma(np.linspace(0.1, 0.9, len(group1_labels)))
+    colors2 = plt.cm.cividis(np.linspace(0, 0.9, len(group2_labels)))
+    # colors2 = plt.cm.viridis(np.linspace(0, 0.9, len(group2_labels)))
+
+    # Helper function to plot a single group to avoid code repetition
+    def plot_single_group(gap_data, time_data, x_labels, colors, marker_style, group_name_suffix):
+        for i, (g_group, t_group) in enumerate(zip(gap_data, time_data)):
+            m_x, m_y = np.median(t_group), np.median(g_group)
+
+            # Calculate IQRs
+            x_iqr = [[m_x - np.percentile(t_group, 25)], [np.percentile(t_group, 75) - m_x]]
+            y_iqr = [[m_y - np.percentile(g_group, 25)], [np.percentile(g_group, 75) - m_y]]
+            
+            # Plot Error Bars
+            plt.errorbar(m_x, m_y, xerr=x_iqr, yerr=y_iqr, 
+                         fmt='none', ecolor=colors[i], elinewidth=3, 
+                         capsize=0, alpha=0.6, zorder=2)
+
+            # Plot Median Point with unique Marker Style
+            plt.scatter(m_x, m_y, color=colors[i], s=140, marker=marker_style, 
+                        edgecolors='black', linewidths=1.5, 
+                        label=f"{x_labels[i]}", zorder=4)
+
+    # 2. Plot Group 1: Using Large Circles ('o')
+    plot_single_group(group1_gap, group1_time, group1_labels, colors1, marker_style='o', group_name_suffix="")
+
+    # 3. Plot Group 2: Using another style like Filled Squares ('s'), Triangles ('^'), or Diamonds ('D')
+    plot_single_group(group2_gap, group2_time, group2_labels, colors2, marker_style='^', group_name_suffix="")
+
+    # 4. Final Touches
+    plt.xlabel('Relative Run Time', fontsize=12)
+    plt.ylabel('Cost Gap (%)', fontsize=12)
+    plt.title('Performance comparison across two threshold groups', fontsize=14)
+    
+    # Places the combined customized legend smoothly to the right side
+    plt.legend(title="Threshold Groups", bbox_to_anchor=(1.05, 1), loc='upper left', ncol=2)
+    plt.grid(True, linestyle=':', alpha=0.4)
+    
     plt.tight_layout()
     plt.savefig(fig_name, dpi=300, bbox_inches='tight')
     plt.show()
@@ -466,23 +517,23 @@ def load_and_filter_simulation_data(file_label_mapping: dict) -> dict:
 
 if __name__ == "__main__":
     # with open('results/simulation_results_4days_40data.pkl', 'rb') as f:
-    with open('results/simulation_results_1-2days_Train_SPO_CE_pen_test_CE.pkl', 'rb') as f:
+    with open('results/simulation_results_1-2days_spo_aveY.pkl', 'rb') as f:
         data = pickle.load(f)
         print(data['labels'])
     # plot_results(data)
 
     targets_config = {
-        # 'results/simulation_results_4days_1200s.pkl': [
-        #     # '4800data_bce_epoch_20','2400data_bce_epoch_20', 
-        #     '150data_bce_epoch_20',
-        #     '150data_spo_epoch_50', '150data_hybrid_epoch_50', '150data_fy_epoch_50',
-        #     # '150data_spo_moving_ave_3', '150data_spo_moving_ave_5'
-        # ],
-        'results/simulation_results_1-2days.pkl': [
-            # '4800data_bce_epoch_20','2400data_bce_epoch_20',
-            '150data_bce_epoch_20', 
-            '150data_spo_epoch_50', '150data_hybrid_epoch_50','150data_fy_epoch_50'
+        'results/simulation_results_4days_1200s.pkl': [
+            # '4800data_bce_epoch_20','2400data_bce_epoch_20', 
+            '150data_bce_epoch_20',
+            '150data_spo_epoch_50', '150data_hybrid_epoch_50', '150data_fy_epoch_50',
+            '150data_spo_moving_ave_3', '150data_spo_moving_ave_5'
         ],
+        # 'results/simulation_results_1-2days.pkl': [
+        #     # '4800data_bce_epoch_20','2400data_bce_epoch_20',
+        #     '150data_bce_epoch_20', 
+        #     '150data_spo_epoch_50', '150data_hybrid_epoch_50','150data_fy_epoch_50'
+        # ],
         # 'results/simulation_results_1-2days_moving_ave.pkl': [
         #     '150data_spo_moving_ave_3', '150data_spo_moving_ave_5'
         # ],
@@ -492,8 +543,11 @@ if __name__ == "__main__":
         # 'results/simulation_results_1-2days_crossentropy_pen.pkl': [
         #     '150data_bce_epoch_20_CE_pen'
         # ],
-        'results/simulation_results_1-2days_Train_SPO_CE_pen_test_CE.pkl': [
-            '150data_SPO_epoch_50_CE_pen'
+        # 'results/simulation_results_1-2days_Train_SPO_CE_pen_test_CE.pkl': [
+        #     '150data_SPO_epoch_50_CE_pen'
+        # ],
+        'results/simulation_results_4days_spo_aveY.pkl': [
+            '150data_spo_aveY_epoch_50'
         ],
     }
     filtered_data_1 = load_and_filter_simulation_data(targets_config)
@@ -504,8 +558,9 @@ if __name__ == "__main__":
 
     # results for the hard fixing strategy
     thres = [0.5, 0.6, 0.7, 0.8, 0.9, 0.95]
+    # thres = [0.5]
     # file_path = 'results/simulation_results_1-2days_vardataset_soft_fixing.pkl'
-    file_path = 'results/simulation_results_4days_soft_fixing.pkl'
+    file_path = 'results/simulation_results_150data_4days_soft_fixing_evaluate.pkl'
     # Open the file in read-binary ('rb') mode
     with open(file_path, 'rb') as file:
         full_results_2 = pickle.load(file)
@@ -523,24 +578,33 @@ if __name__ == "__main__":
     perct_fixe.append(np.asarray(full_results_2['percentage_fixed'])[indexes])
     # print(gap_list_2)
 
-    gap_list_2 = np.vstack(gap_list_2)
+    gap_list_2 = np.vstack(gap_list_2)*100
     time_list_2 = np.vstack(time_list_2)
     percent_list_2 = np.vstack(perct_fixe)
-    # print(gap_list_1)
+    
 
-    # combined_results = {}
-    # combined_results['labels'] = np.concatenate((all_found_labels_1, all_found_labels_2), axis=0)
-    # combined_results['gap_data'] = np.vstack((gap_list_1,gap_list_2))
-    # combined_results['time_data'] = np.vstack((time_list_1,time_list_2))
+    row_idx_1, col_idx_1 = np.unravel_index(np.argmax(gap_list_1), gap_list_1.shape)
+    print(f"Largest value: {gap_list_1[row_idx_1, col_idx_1]}")
+    print(f"Position -> Row: {row_idx_1}, Column: {col_idx_1}")
+    row_idx_2, col_idx_2 = np.unravel_index(np.argmax(gap_list_2), gap_list_2.shape)
+    print(f"Largest value: {gap_list_2[row_idx_2, col_idx_2]}")
+    print(f"Position -> Row: {row_idx_2}, Column: {col_idx_2}")
 
     combined_results = {}
-    combined_results['labels'] = all_found_labels_2
-    combined_results['gap_data'] = gap_list_2
-    combined_results['time_data'] = time_list_2
-    combined_results['percent_data'] = percent_list_2
+    combined_results['labels'] = np.concatenate((all_found_labels_1, all_found_labels_2), axis=0)
+    combined_results['gap_data'] = np.vstack((gap_list_1,gap_list_2))
+    combined_results['time_data'] = np.vstack((time_list_1,time_list_2))
+
+    # combined_results = {}
+    # combined_results['labels'] = all_found_labels_2
+    # combined_results['gap_data'] = gap_list_2
+    # combined_results['time_data'] = time_list_2
+    # combined_results['percent_data'] = percent_list_2
 
     # print(combined_results['gap_data'])
     
     # plot_results(filtered_data_1)
     plot_results(combined_results)
+    plot_gap_vs_time_two_groups(gap_list_1, time_list_1, all_found_labels_1,
+    gap_list_2, time_list_2, all_found_labels_2)
     

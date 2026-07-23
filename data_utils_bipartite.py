@@ -68,11 +68,11 @@ def create_instance(scenario, opt_sol, relax_sol, num_products, num_days):
                 scenario.energy_startup[j] / max_es,
                 scenario.initial_stock[j] / scenario.capacity,
                 scenario.D[j][t_idx] / scenario.capacity,
-                # sum(scenario.D[j][:t_idx+1]) / (scenario.capacity*num_macro),
-                # sum(scenario.D[j][t_idx+1:]) / (scenario.capacity*num_macro),
+                sum(scenario.D[j][:t_idx+1]) / (scenario.capacity*num_macro),
+                sum(scenario.D[j][t_idx+1:]) / (scenario.capacity*num_macro),
                 scenario.energy_purchase_price[r] / max_p,
                 scenario.PV[r] / max_pv,
-                # relax_X[j][r]
+                relax_X[j][r]
                 ]
             )
     data['var_startup'].x = torch.tensor(startup_features, dtype=torch.float)
@@ -87,11 +87,11 @@ def create_instance(scenario, opt_sol, relax_sol, num_products, num_days):
                 t_idx/num_macro,
                 scenario.initial_stock[j] / scenario.capacity,
                 scenario.D[j][t_idx] / scenario.capacity,
-                # sum(scenario.D[j][:t_idx+1]) / (scenario.capacity*num_macro),
-                # sum(scenario.D[j][t_idx+1:]) / (scenario.capacity*num_macro),
+                sum(scenario.D[j][:t_idx+1]) / (scenario.capacity*num_macro),
+                sum(scenario.D[j][t_idx+1:]) / (scenario.capacity*num_macro),
                 scenario.energy_purchase_price[r] / max_p,
                 scenario.PV[r] / max_pv,
-                # relax_Y[j][r+1]
+                relax_Y[j][r+1]
                 ]
             )
     data['var_setup'].x = torch.tensor(setup_features, dtype=torch.float)
@@ -108,8 +108,8 @@ def create_instance(scenario, opt_sol, relax_sol, num_products, num_days):
                 scenario.capacity_unit[j] / max(scenario.capacity_unit),
                 scenario.initial_stock[j] / scenario.capacity,
                 scenario.D[j][t_idx] / scenario.capacity,
-                # sum(scenario.D[j][:t_idx+1]) / (scenario.capacity*num_macro),
-                # sum(scenario.D[j][t_idx+1:]) / (scenario.capacity*num_macro),
+                sum(scenario.D[j][:t_idx+1]) / (scenario.capacity*num_macro),
+                sum(scenario.D[j][t_idx+1:]) / (scenario.capacity*num_macro),
                 scenario.energy_purchase_price[r] / max_p,
                 scenario.PV[r] / max_pv
                 ]
@@ -125,8 +125,8 @@ def create_instance(scenario, opt_sol, relax_sol, num_products, num_days):
                 scenario.holding_cost[j] / max_hc,
                 scenario.initial_stock[j] / scenario.capacity,
                 scenario.D[j][t] / scenario.capacity,
-                # sum(scenario.D[j][:t+1]) / (scenario.capacity*num_macro),
-                # sum(scenario.D[j][t+1:]) / (scenario.capacity*num_macro),
+                sum(scenario.D[j][:t+1]) / (scenario.capacity*num_macro),
+                sum(scenario.D[j][t+1:]) / (scenario.capacity*num_macro),
                 ]
             )
     data['var_invent'].x = torch.tensor(invent_features, dtype=torch.float)
@@ -140,8 +140,8 @@ def create_instance(scenario, opt_sol, relax_sol, num_products, num_days):
                 scenario.lost_cost[j] / max_lc,
                 scenario.initial_stock[j] / scenario.capacity,
                 scenario.D[j][t] / scenario.capacity,
-                # sum(scenario.D[j][:t+1]) / (scenario.capacity*num_macro),
-                # sum(scenario.D[j][t+1:]) / (scenario.capacity*num_macro),
+                sum(scenario.D[j][:t+1]) / (scenario.capacity*num_macro),
+                sum(scenario.D[j][t+1:]) / (scenario.capacity*num_macro),
                 ]
             )
     data['var_lost'].x = torch.tensor(lost_features, dtype=torch.float)

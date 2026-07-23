@@ -500,7 +500,7 @@ class CplexOptimizer:
 
         ### Penalization with the term M(1-y)
         if penalize == 'Hard':
-            big_M = 1000
+            big_M = 100
             cnst = sum(np.array(self.confident_mask).astype(int))
             offset = cnst * big_M
             for r_idx in range(self.R):
@@ -722,6 +722,7 @@ def solve_with_penalization_in_obj_hard(scenario_data, prod_indices, confident_m
     # Initialize the existing class
     # We use the dimensions from the scenario data
     J = scenario_data.J
+    R = scenario_data.R
     days = scenario_data.days
     opt = CplexOptimizer(days, J)
     opt.prod_indices = prod_indices
@@ -734,9 +735,11 @@ def solve_with_penalization_in_obj_hard(scenario_data, prod_indices, confident_m
     obj_updates, offset = opt.update_objective(scenario_data, penalize='Hard')
     opt.detModel.objective.set_linear(obj_updates)
     opt.detModel.objective.set_offset(float(offset))
+    # print('offset', offset)
 
     start_cplex = time.perf_counter()
     opt.detModel.parameters.timelimit.set(1200)
+
     # Solve the remaining Linear Program (LP)
     opt.detModel.solve()
 
@@ -746,7 +749,10 @@ def solve_with_penalization_in_obj_hard(scenario_data, prod_indices, confident_m
     
     status = opt.detModel.solution.get_status()
     if status in [1, 101, 102, 107]: # Optimal statuses
-        return opt.detModel.solution.get_objective_value(), total_time
+        setup_indices   = [opt.setup_var[j,r] for j in range(J+1) for r in range(R+1)]
+        Y = np.array(opt.detModel.solution.get_values(setup_indices), dtype=np.float32)
+        obj = opt.detModel.solution.get_objective_value()
+        return obj, Y, total_time
     else:
         # If GNN made an impossible choice (e.g., broke a hard constraint)
         return float('inf')
@@ -846,7 +852,9 @@ def evaluate_solution(scenario_data, y_values):
     
     status = opt.detModel.solution.get_status()
     if status in [1, 101, 102]: # Optimal statuses
-        return opt.detModel.solution.get_objective_value(), total_time
+        setup_indices   = [opt.setup_var[j,r] for j in range(J+1) for r in range(R+1)]
+        Y = np.array(opt.detModel.solution.get_values(setup_indices), dtype=np.float32)
+        return opt.detModel.solution.get_objective_value(), total_time, Y
     else:
         # If GNN made an impossible choice (e.g., broke a hard constraint)
         return float('inf')

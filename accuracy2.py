@@ -69,7 +69,7 @@ def evaluate(test_data, model_path, result_store_path, x_labels, feat_dims, edge
         accuracy = []
 
         threshold = [0.5, 0.60, 0.70, 0.80, 0.90, 0.95]
-        # threshold = [0.5]
+        # threshold = [0.6]
         
         gaps_fixe = [[] for i in range(len(threshold))]
         times_fixe = [[] for i in range(len(threshold))]
@@ -131,7 +131,14 @@ def evaluate(test_data, model_path, result_store_path, x_labels, feat_dims, edge
                 # ---------------------------------
                 # y_hat_reshape = y_hat.reshape(scenario.J+1, scenario.R).detach().numpy()
                 # true_penaliz_obj, y_new, time_pen = solve_with_penalization_in_obj(scenario, y_hat_reshape)
-                # obj_pen, ti = evaluate_solution(scenario, y_new)
+                # obj_pen, ti, _ = evaluate_solution(scenario, y_new)
+
+                # np.set_printoptions(precision=2, suppress=True)
+                # print(f'cplex obj {cplex_obj}')
+                # print(f'true y {y_true_binary.reshape(scenario.J+1, scenario.R)}')
+                # print(f'prediction y values {y_hat.reshape(scenario.J+1, scenario.R)}')
+                # print(f'obj soft penalization {obj_pen}')
+                # print('soft penalization', y_new.reshape(scenario.J+1, scenario.R+1))
 
 
                 # gap_pen = (obj_pen - cplex_obj) / cplex_obj
@@ -192,12 +199,18 @@ def evaluate(test_data, model_path, result_store_path, x_labels, feat_dims, edge
                     # With those confident enough Y values fixed, resolve the problem and get the objective value
                     # evaluate the performance of the gnn prediction
                     confident_mask = max_vals >= thres
+                    # print(confident_mask)
                     
                     # # Hard fixing strategy
                     # obj_fixe, time_fixe = solve_with_fixed_setups(scenario, prod_indices, confident_mask)
 
                     # Soft fixing strategy
-                    obj_fixe, time_fixe = solve_with_penalization_in_obj_hard(scenario, prod_indices, confident_mask)
+                    obj_hard, y_new, time_fixe = solve_with_penalization_in_obj_hard(scenario, prod_indices, confident_mask)
+                    obj_fixe, ti, _ = evaluate_solution(scenario, y_new)
+                    # print(f'obj soft fixing {obj_hard} {obj_fixe}')
+                    # print(f'prod indices {prod_indices}')
+                    # print(f'soft fixing threshold {threshold[k]}', y_new.reshape(scenario.J+1, scenario.R+1))
+                    
 
                     gap_fixe = (obj_fixe - cplex_obj) / cplex_obj
                     relative_time_fixe = time_fixe / scenario.resolution_time

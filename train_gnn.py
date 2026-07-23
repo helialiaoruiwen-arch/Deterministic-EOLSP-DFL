@@ -98,7 +98,8 @@ def train(train_data, test_data, model_path, feat_dims, edge_dims):
             counts = torch.bincount(node_batch_map, minlength=batch_data.num_graphs)
             y_hat_list = torch.split(y_hat, counts.tolist())
 
-            y_true_list = torch.split(batch_data['var_setup'].y.float(), counts.tolist())
+            # y_true_list = torch.split(batch_data['var_setup'].y.float(), counts.tolist())
+            y_true_list = torch.split(batch_data['var_setup'].aveY_.float(), counts.tolist())
 
             # reverse the batching process, split the data into a list of individual heterodata object
             data_list = batch_data.to_data_list()
@@ -201,7 +202,7 @@ def train(train_data, test_data, model_path, feat_dims, edge_dims):
                     counts = torch.bincount(node_batch_map, minlength=batch.num_graphs)
                     y_hat_list = torch.split(y_hat, counts.tolist())
 
-                    y_true_list = torch.split(batch['var_setup'].y.float(), counts.tolist())
+                    y_true_list = torch.split(batch['var_setup'].aveY_.float(), counts.tolist())
 
                     # reverse the batching process, split the data into a list of individual heterodata object
                     data_list = batch.to_data_list()
@@ -238,7 +239,7 @@ def train(train_data, test_data, model_path, feat_dims, edge_dims):
                 
 
 
-        checkpoint_dir = Path("checkpoints/var_150data_spo_CE_pen")
+        checkpoint_dir = Path("checkpoints/var_150data_spo_average_Y")
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
         if epoch % 10 == 9:
             checkpoint = {

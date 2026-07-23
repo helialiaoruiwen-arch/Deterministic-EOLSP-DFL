@@ -1,14 +1,15 @@
-import torch
+import torch, random
 from model_def import SchedulingDataset
 from train_gnn import train
 # from accuracy import evaluate
 from accuracy2 import evaluate
+from CplexModel import evaluate_solution
 
 
-# DATA_PATH = "data_storage_var"
-DATA_PATH = "data_storage_test_1-2days"
+# DATA_PATH = "TrainingDataset_aveY/data_storage_var"
+DATA_PATH = "Evaluation_Dataset/data_storage_test_4days"
 MODEL_PATH = "scheduling_gnn_var.pth"
-RESULT_STORE_PATH = "simulation_results_1-2days_soft_fixing_1000.pkl"
+RESULT_STORE_PATH = "simulation_results_150data_4days_soft_fixing_evaluate.pkl"
 
 def get_split_data(dataset, train_ratio=0.05, seed=42):
     train_size = int(train_ratio * len(dataset))
@@ -77,7 +78,7 @@ e_dim = detect_all_edge_dims(sample_data)
 
 # MODEL_PATH = ['var_150data_spo_CE_pen/checkpoint_epoch_49.pth']
 MODEL_PATH = ['var_150data_bce/checkpoint_epoch_19.pth']
-X_LABELS = ['150data_bce_epoch_20_pen']
+X_LABELS = ['150data_soft_fixing_epoch_20']
 
 # MODEL_PATH = ['var_150data_spo_moving_ave_3/checkpoint_epoch_49.pth', 'var_150data_spo_moving_ave_5/checkpoint_epoch_49.pth']
 # X_LABELS = ['150data_spo_moving_ave_3', '150data_spo_moving_ave_5']
@@ -85,27 +86,27 @@ X_LABELS = ['150data_bce_epoch_20_pen']
 # X_LABELS = ['2400data_spo_epoch_50', '2400data_spo_epoch_100']
 
 assert len(MODEL_PATH) == len(X_LABELS)
-validation_dataset = SchedulingDataset(DATA_PATH)[:]
-# evaluate(validation_dataset, MODEL_PATH, RESULT_STORE_PATH, X_LABELS, feat_dims, e_dim)
+validation_dataset = SchedulingDataset(DATA_PATH)[:40]
+evaluate(validation_dataset, MODEL_PATH, RESULT_STORE_PATH, X_LABELS, feat_dims, e_dim)
 
 
 # # see how the data looks like
-data = train_set[0]
-print(len(train_set))
-print("--- Graph Summary ---")
-print(f"Number of nodes: {data.num_nodes}")
-print(f"Number of edges: {data.num_edges}")
-print(f"Features per node: {data.num_node_features}") # This should match your model's input_dim
-print(f"Is directed: {data.is_directed()}")
+# data = train_set[0]
+# print(len(train_set))
+# print("--- Graph Summary ---")
+# print(f"Number of nodes: {data.num_nodes}")
+# print(f"Number of edges: {data.num_edges}")
+# print(f"Features per node: {data.num_node_features}") # This should match your model's input_dim
+# print(f"Is directed: {data.is_directed()}")
 
-print("\n--- Tensor Shapes ---")
-# print(f"Node Features (x): {data.x.shape}")   # [Nodes, Features]
-# print(f"Edge Index: {data.edge_index.shape}")  # [2, Edges]
-print(f"Labels (y): {data['var_setup'].y.shape}")
-print(f"\nTotal Setups in this scenario: {data['var_setup'].y.sum().item()}")
+# print("\n--- Tensor Shapes ---")
+# # print(f"Node Features (x): {data.x.shape}")   # [Nodes, Features]
+# # print(f"Edge Index: {data.edge_index.shape}")  # [2, Edges]
+# print(f"Labels (y): {data['var_setup'].y.shape}")
+# print(f"Labels (x): {data['var_startup'].x.shape}")
+# print(f"\nTotal Setups in this scenario: {data['var_setup'].y.sum().item()}")
 
 # print(f"First 5 Node Feature Vectors: {data.x[:5]}")
 # print(f"\nFirst 5 Labels (Setups): {data.y[:5]}")
 
 
-####################### some tests: exploit the neighborhood of the optimum ###############################
